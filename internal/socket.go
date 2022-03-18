@@ -67,12 +67,15 @@ func (httpHandler *httpHandler) handleRegister(writer http.ResponseWriter, reque
 	defer request.Body.Close()
 
 	reg := Register{}
+
 	err := json.NewDecoder(request.Body).Decode(&reg)
 	if err != nil {
 		log.Errorf("Error while handling register call: %s", err)
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	log.Debugf("Received Registration: %s", reg)
 
 	if reg.checkParams() {
 		log.Errorf("Incomplete register payload: %v", reg)

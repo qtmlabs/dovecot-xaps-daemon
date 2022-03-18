@@ -214,11 +214,15 @@ func (db *Database) AddRegistration(username, accountId, deviceToken string, mai
 	// Ensure the User exists
 	if _, ok := db.Users[username]; !ok {
 		db.Users[username] = User{Accounts: make(map[string]Account)}
+	} else {
+		log.Debugf("AddRegistration(): User %s already exists", username)
 	}
 
 	// Ensure the Account exists
 	if _, ok := db.Users[username].Accounts[accountId]; !ok {
 		db.Users[username].Accounts[accountId] = Account{}
+	} else {
+		log.Debugf("AddRegistration(): Account %s already exists", accountId)
 	}
 
 	// Set or update the Registration
@@ -229,9 +233,12 @@ func (db *Database) AddRegistration(username, accountId, deviceToken string, mai
 			RegistrationTime: time.Now(),
 		}
 
+	log.Debugf("AddRegistration(): About to flush db to disk")
 	if db.lastWrite.Before(time.Now().Add(-time.Minute * 15)) {
 		err = db.write()
 		db.lastWrite = time.Now()
+	} else {
+		log.Debugf("AddRegistration(): DB flush postponed since last write (%s) is not older than 15 minutes", db.lastWrite)
 	}
 
 	// release mutex
