@@ -7,7 +7,9 @@ loglevel: info
 # This sets the location of the file.
 databaseFile: /var/lib/xapsd/database.json
 
-# xapsd listens ona a socket for http/https requests from the dovecot plugin. This sets the port number of the socket.
+# xapsd listens on a socket for http/https requests from the dovecot plugin.
+# This sets the address and port number of the listen socket.
+listenAddr: '[::1]'
 port: 11619
 
 # xapsd is able to listen on a HTTPS Socket to allow HTTP/2 to be used
@@ -16,6 +18,7 @@ port: 11619
 # !!! direct usage with the plugin is discouraged and unsupported
 tlsCertfile:
 tlsKeyfile:
+tlsListenAddr:
 tlsPort: 11620
 
 # Notifications that are not initiated by new messages are not sent immediately for two reasons:
