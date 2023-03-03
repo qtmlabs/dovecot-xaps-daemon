@@ -14,10 +14,12 @@ type httpHandler struct {
 	apns *Apns
 }
 
-// REGISTER aps-account-id="AAA" aps-device-token="BBB"
-//    aps-subtopic="com.apple.mobilemail"
-//    dovecot-username="stefan"
-//    dovecot-mailboxes=("Inbox","Notes")
+// Register struct to handle register requests via IMAP like:
+//
+//	 REGISTER aps-account-id="AAA" aps-device-token="BBB"
+//		aps-subtopic="com.apple.mobilemail"
+//		dovecot-username="stefan"
+//		dovecot-mailboxes=("Inbox","Notes")
 type Register struct {
 	ApsAccountId   string
 	ApsDeviceToken string
@@ -54,15 +56,14 @@ func NewHttpSocket(config *config.Config, db *database.Database, apns *Apns) {
 
 // Handle the REGISTER command. It looks as follows:
 //
-//  REGISTER aps-account-id="AAA" aps-device-token="BBB"
-//     aps-subtopic="com.apple.mobilemail"
-//     dovecot-username="stefan"
-//     dovecot-mailboxes=("Inbox","Notes")
+//	REGISTER aps-account-id="AAA" aps-device-token="BBB"
+//	   aps-subtopic="com.apple.mobilemail"
+//	   dovecot-username="stefan"
+//	   dovecot-mailboxes=("Inbox","Notes")
 //
 // The command returns the aps-topic, which is the common name of
 // the certificate issued by OS X Server for email push
 // notifications.
-//
 func (httpHandler *httpHandler) handleRegister(writer http.ResponseWriter, request *http.Request, _ httprouter.Params) {
 	defer request.Body.Close()
 
@@ -103,7 +104,7 @@ func (httpHandler *httpHandler) handleRegister(writer http.ResponseWriter, reque
 
 // Handle the NOTIFY command. It looks as follows:
 //
-//  NOTIFY dovecot-username="stefan" dovecot-mailbox="Inbox"
+//	NOTIFY dovecot-username="stefan" dovecot-mailbox="Inbox"
 //
 // See if the the username has devices registered. If it has, loop
 // over them to find the ones that are interested in the named
@@ -111,8 +112,7 @@ func (httpHandler *httpHandler) handleRegister(writer http.ResponseWriter, reque
 //
 // The push notification looks like this:
 //
-//  { "aps": { "account-id": aps-account-id } }
-//
+//	{ "aps": { "account-id": aps-account-id } }
 func (httpHandler *httpHandler) handleNotify(writer http.ResponseWriter, request *http.Request, _ httprouter.Params) {
 	defer request.Body.Close()
 
