@@ -7,6 +7,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"strings"
 )
 
 type httpHandler struct {
@@ -92,7 +93,7 @@ func (httpHandler *httpHandler) handleRegister(writer http.ResponseWriter, reque
 	}
 
 	// Register this email/account-id/device-token combination
-	err = httpHandler.db.AddRegistration(reg.Username, reg.ApsAccountId, reg.ApsDeviceToken, reg.Mailboxes)
+	err = httpHandler.db.AddRegistration(strings.ToLower(reg.Username), reg.ApsAccountId, reg.ApsDeviceToken, reg.Mailboxes)
 	if err != nil {
 		log.Errorf("Failed to register client:: %s", err)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -129,6 +130,11 @@ func (httpHandler *httpHandler) handleNotify(writer http.ResponseWriter, request
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	// Dovecot supports case sensitive usernames, but postfix doesn't
+	// So we only care about lowercase users for now
+	// This isn't an exploit either, since we don't send any email contents via push
+	notify.Username = strings.ToLower(notify.Username)
 
 	isMessageNew := false
 	// check if this is an event for a new message
