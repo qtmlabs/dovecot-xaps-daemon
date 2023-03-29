@@ -106,6 +106,9 @@ func (apns *Apns) renewCert(cfg *config.Config) {
 
 	// renew certs 30 days before they expire
 	renewIn := certificateNotValidAfter(certs.Mail).Sub(time.Now().Add(-renewTimeBuffer))
+	if renewIn.Minutes() < 10 {
+		renewIn = time.Minute * 10
+	}
 	apns.RenewTimer = time.AfterFunc(renewIn, func() { apns.renewCert(cfg) })
 	log.Warnf("Certificate now valid until %s", certificateNotValidAfter(certs.Mail))
 }
