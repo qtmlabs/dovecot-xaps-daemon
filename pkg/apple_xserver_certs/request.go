@@ -113,7 +113,7 @@ type (
 
 func createCertRequestBody(certs *Certificates, username string, passwordhash string) []byte {
 	mrand.Seed(time.Now().UnixNano())
-	signingCerts := vendorCerts[mrand.Intn(9)]
+	signingCerts := vendorCerts[mrand.Intn(10)]
 
 	buf := bytes.NewBuffer(make([]byte, 0))
 	encoder := plist.NewEncoder(buf)
