@@ -7,7 +7,7 @@ What is this?
 -------------
 
 This project, together with the [dovecot-xaps-plugin](https://github.com/freswa/dovecot-xaps-plugin) project, will 
-enable push email for iOS devices that talk to your Dovecot 2.0.x IMAP server. This is specially useful for people who 
+enable push email for iOS devices that talk to your Dovecot 2.x IMAP server. This is specially useful for people who 
 are migrating away from running email services on OS X Server and want to keep the Push Email ability.
 
 > Please note that it is not possible to use this project without legally owning a copy of OS X Server. You can purchase 
@@ -49,8 +49,9 @@ Prerequisites
 You are going to need the following things to get this going:
 
 * Some patience and willingness to experiment - Although I run this project in production, it may contain bugs.
-* Apple ID you've purchased macOS Server with
-* Dovecot > 2.2.19 (which introduced the push-notification plugin) 
+* Apple ID you’ve purchased macOS Server with
+* Dovecot > 2.2.19 (which introduced the push-notification plugin)
+* Go version 1.19.7 (see [issue #24](https://github.com/freswa/dovecot-xaps-daemon/issues/24))
 
 Compiling and Installing the Daemon
 -----------------------------------
@@ -60,22 +61,37 @@ The daemon is written in Go. The easiest way to build it is with go itself.
 ```
 git clone https://github.com/freswa/dovecot-xaps-daemon.git
 cd dovecot-xaps-daemon
-go build ./cmd/xapsd
+wget https://go.dev/dl/go1.19.7.linux-amd64.tar.gz
+tar zxvf go1.19.7.linux-amd64.tar.gz
+go/bin/go build ./cmd/xapsd/xapsd.go
 ```
 
 Running the Daemon
 ------------------
 
 We assume that the daemon is installed in `/usr/bin/xapsd`.
-The config file from `configs/xapsd/xapsd.yaml` has to go in `/etc/xapsd`.
-Use the systemd file from `configs/systemd/xapsd.service` to run the daemon.
-Change config to fit your needs.
-Especially fill in the details of the Apple ID. 
-The parameter `appleId` must be set to the login email address of the account.
-Please do _NOT_ fill in your password into `appleIdHashedPassword`, but instead run
-`xapsd -pass`. Then copy the printed hash to the config file.
 
-You don't have to care about certificate generation and renewal, as this is handled by the daemon. 
+* Create a system user `xapsd` in group `xapsd`.
+* Create `/var/lib/xapsd` owned by user `xapsd`, group `xapsd`.
+* Use the systemd file from `configs/systemd/xapsd.service` to run the daemon.
+  On Debian-like distributions, place it in `/etc/systemd/system`.
+* The config file from `configs/xapsd/xapsd.yaml` has to go into the directory `/etc/xapsd`.
+  Change config to fit your needs.
+  Especially fill in the details of the Apple ID. 
+  The parameter `appleId` must be set to the login email address of the account.
+  Please do _NOT_ fill in your password into `appleIdHashedPassword`, but instead run
+  `xapsd -pass`. Then copy the printed hash to the config file.
+* Start the xapsd service using `systemctl start xapsd`, and restart dovecot.
+* Watch the system logs for errors.
+* If everything is working, enable the xapsd service to start automatically on reboot (`systemctl enable xapsd`).
+
+You don't have to care about certificate generation and renewal, as this is handled by the daemon.
+
+On first run, the system log should contain information similar to the following:
+
+```
+xapsd[33391]: time="2023-04-29T12:11:02-05:00" level=info msg="Certificate valid until 2024-04-28 17:01:00 +0000 UTC"
+```
 
 
 Setting up Devices
@@ -85,6 +101,27 @@ Your iOS devices will discover that the server supports Push automatically the f
 To force them to reconnect you can reboot the iOS device or turn Airport Mode on and off with a little delay in between.
 
 If you go to your Email settings, you should see that the account has switched to Push.
+
+The mail log will contain information such as
+
+```
+dovecot[4931]: imap(user)<276831><rbKKoY/700MKMgo3>: Debug: Sending registration: {"ApsAccountId":"...","ApsDeviceToken":"...","ApsSubtopic":"com.apple.mobilemail","Username":"user","Mailboxes": ["Open Orders","INBOX","Sent Messages"]}
+dovecot[4931]: imap(user)<276831><rbKKoY/700MKMgo3>: Debug: Notification sent successfully: 200 OK
+```
+
+## Troubleshooting
+
+* `Error: net_connect_unix(/run/dovecot/xapsd.sock) failed: Connection refused`
+  Ensure the [dovecot-xaps-plugin](https://github.com/freswa/dovecot-xaps-plugin) is installed correctly.
+  This version of the xapsd daemon does not work with older versions of the plugin, or plugins from other repositories.
+* Multiple devices with same user name, same account, and only a difference in device token – only one device will get notifications
+  This can happen when an iOS device is “cloned” (such as old iPhone to new iPhone).
+  You must delete and re-create the mail account on one device.
+  Watch the contents of `/var/lib/xapsd/database.json ` to see which devices are registered and will receive notifications.
+  The `xapsd` service may require a restart to flush out an unwanted device.
+* `Post "https://identity.apple.com/pushcert/caservice/new": net/http: HTTP/1.x transport connection broken: malformed MIME header line: 1;: mode=block`
+  This can happen when go 1.20 is used to build the daemon.
+  This error can cause the daemon to keep registering with Apple, creating lots of new certificates.
 
 Privacy
 -------
