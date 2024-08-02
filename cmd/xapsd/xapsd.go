@@ -27,6 +27,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"flag"
@@ -36,7 +37,10 @@ import (
 	"github.com/freswa/dovecot-xaps-daemon/internal/database"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 )
 
 const Version = "1.1"
@@ -65,7 +69,28 @@ func main() {
 	}
 
 	apns := internal.NewApns(&cfg, db)
-	internal.NewHttpSocket(&cfg, db, apns)
+
+	var signalChan = make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	srv := internal.NewHttpSocket(&cfg, db, apns)
+
+	sig := <-signalChan
+	log.Infof("Stop signal received from system: %s, flushing database and shutting down...", sig)
+
+	err = db.Write()
+
+	if err != nil {
+		log.Errorf("Failed to flush database: %v, ignoring.", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = srv.Shutdown(ctx)
+	if err != nil {
+		log.Errorln("Server shutdown failed: ", err)
+	}
 }
 
 // function to generate the password

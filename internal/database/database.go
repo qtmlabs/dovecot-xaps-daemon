@@ -81,7 +81,7 @@ func NewDatabase(filename string) (*Database, error) {
 	_, err := os.Stat(filename)
 	if err != nil && os.IsNotExist(err) {
 		db := &Database{filename: filename, Users: make(map[string]User)}
-		err := db.write()
+		err := db.Write()
 		if err != nil {
 			return nil, err
 		}
@@ -110,13 +110,17 @@ func NewDatabase(filename string) (*Database, error) {
 	return &db, nil
 }
 
-func (db *Database) write() error {
+func (db *Database) Write() error {
 	data, err := json.MarshalIndent(db, "", "  ")
 	if err != nil {
 		return err
 	}
 
 	err = ioutil.WriteFile(db.filename+".new", data, 0644)
+	if err != nil {
+		return err
+	}
+
 	return os.Rename(db.filename+".new", db.filename)
 }
 
@@ -199,7 +203,7 @@ func (db *Database) PutCerts(certs *apple_xserver_certs.Certificates) {
 	db.AppleCerts.Signature[3] = mgmtCert
 	db.AppleCerts.Signature[4] = alertsCert
 
-	err := db.write()
+	err := db.Write()
 	if err != nil {
 		log.Fatalln("Could not write database to disk while trying to save the certificates: ", err)
 	}
@@ -235,7 +239,7 @@ func (db *Database) AddRegistration(username, accountId, deviceToken string, mai
 
 	log.Debugf("AddRegistration(): About to flush db to disk")
 	if db.lastWrite.Before(time.Now().Add(-time.Minute * 15)) {
-		err = db.write()
+		err = db.Write()
 		db.lastWrite = time.Now()
 	} else {
 		log.Debugf("AddRegistration(): DB flush postponed since last write (%s) is not older than 15 minutes", db.lastWrite)
@@ -257,7 +261,7 @@ func (db *Database) DeleteIfExistRegistration(reg Registration) bool {
 				if len(user.Accounts) == 0 {
 					delete(db.Users, username)
 				}
-				err := db.write()
+				err := db.Write()
 				if err != nil {
 					log.Error(err)
 				}

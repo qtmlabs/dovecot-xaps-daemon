@@ -36,7 +36,7 @@ type Notify struct {
 	Events   []string
 }
 
-func NewHttpSocket(config *config.Config, db *database.Database, apns *Apns) {
+func NewHttpSocket(config *config.Config, db *database.Database, apns *Apns) *http.Server {
 	router := httprouter.New()
 	httpSocket := httpHandler{db, apns}
 	router.POST("/register", httpSocket.handleRegister)
@@ -49,10 +49,17 @@ func NewHttpSocket(config *config.Config, db *database.Database, apns *Apns) {
 			}
 		}()
 	}
-	err := http.ListenAndServe(config.ListenAddr+":"+config.Port, router)
-	if err != nil {
-		log.Fatalf("Could not listen on address %s:%s: %s", config.ListenAddr, config.Port, err)
+	srv := &http.Server{
+		Addr:    config.ListenAddr + ":" + config.Port,
+		Handler: router,
 	}
+	go func() {
+		err := srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not listen on address %s:%s: %s", config.ListenAddr, config.Port, err)
+		}
+	}()
+	return srv
 }
 
 // Handle the REGISTER command. It looks as follows:
